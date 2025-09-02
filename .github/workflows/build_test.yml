@@ -16,24 +16,14 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'   # change if needed
+          node-version: '18'
 
       - name: Show Node.js version
         run: node -v
 
-      # Install AWS CLI v2
-      - name: Install AWS CLI v2
-        run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          sudo ./aws/install
-          aws --version
-
-      # Setup SSH key from repo root
-      # - name: Setup SSH key
-      #   run: |
-      #     chmod 600 ./*.pem
-      #     echo "SSH key permissions set"
+      # Show AWS CLI version (already installed on GitHub runner)
+      - name: Show AWS CLI version
+        run: aws --version
 
       # SSH into EC2 and install Docker + Docker Compose
       - name: Install Docker and Docker Compose on EC2
