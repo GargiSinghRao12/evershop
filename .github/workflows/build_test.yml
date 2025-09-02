@@ -1,21 +1,59 @@
-name: Github build
+name: EC2 Docker Setup
 
-on: [pull_request]
+on:
+  workflow_dispatch:
 
 jobs:
-  build:
+  setup:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: [ '20', '22']
-    name: Node ${{ matrix.node }}
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup node js
-        uses: actions/setup-node@v2
+      # Checkout repo (to get the .pem file)
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # Install Node.js
+      - name: Install Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
-      - run: npm install -g npm@9
-      - run: npm install
-      - run: npm run test
+          node-version: '18'   # change version if needed
+
+      - name: Show Node.js version
+        run: node -v
+
+      # Install AWS CLI
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+          aws --version
+
+      # Setup SSH key from repo root
+      # - name: Setup SSH key
+      #   run: |
+      #     chmod 600 ./*.pem
+      #     echo "SSH key permissions set"
+
+      # SSH into EC2 and install Docker + Docker Compose
+      - name: Install Docker and Docker Compose on EC2
+        run: |
+          EC2_USER=ubuntu                  # change if using amazon-linux/ec2-user
+          EC2_HOST=${{ secrets.EC2_PUBLIC_IP }}   # set this in GitHub secrets
+          PEM_FILE=$(ls ./*.pem | head -n 1)
+
+          ssh -o StrictHostKeyChecking=no -i "$PEM_FILE" $EC2_USER@$EC2_HOST << 'EOF'
+            # Update packages
+            sudo apt-get update -y
+
+            # Install Docker
+            sudo apt-get install -y docker.io
+            sudo systemctl enable docker
+            sudo systemctl start docker
+
+            # Install Docker Compose (plugin-based)
+            sudo apt-get install -y docker-compose-plugin
+
+            # Show versions
+            docker --version
+            docker compose version
+          EOF
