@@ -8,43 +8,50 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repo (to get the .pem file)
+      # Checkout repo (not strictly required for EC2 setup)
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # Install Node.js
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Show Node.js version
-        run: node -v
-
-      # Show AWS CLI version (already installed on GitHub runner)
-      - name: Show AWS CLI version
-        run: aws --version
-
-      # SSH into EC2 and install Docker + Docker Compose
-      - name: Install Docker and Docker Compose on EC2
+      # Save PEM file from GitHub Secret
+      - name: Setup SSH Key
         run: |
-          EC2_USER=ubuntu   # change if using Amazon Linux ("ec2-user")
-          EC2_HOST=${{ secrets.EC2_PUBLIC_IP }}   # store EC2 public IP in secrets
-          PEM_FILE=$(ls ./*.pem | head -n 1)
+          echo "${{ secrets.EC2_PEM_KEY }}" > ec2-key.pem
+          chmod 600 ec2-key.pem
 
-          ssh -o StrictHostKeyChecking=no -i "$PEM_FILE" $EC2_USER@$EC2_HOST << 'EOF'
-            # Update packages
+      # SSH into EC2, clone repo, and run docker compose
+      - name: Deploy on EC2
+        run: |
+          EC2_USER=ubuntu   # or ec2-user if Amazon Linux
+          EC2_HOST=${{ secrets.EC2_PUBLIC_IP }}
+          GIT_REPO_URL="https://github.com/GargiSinghRao12/evershop.git"  # put your repo URL in GitHub Secrets
+
+          ssh -o StrictHostKeyChecking=no -i ec2-key.pem $EC2_USER@$EC2_HOST << 'EOF'
+            set -e
+
+            # Update system
             sudo apt-get update -y
 
-            # Install Docker
-            sudo apt-get install -y docker.io
-            sudo systemctl enable docker
-            sudo systemctl start docker
+            # Install Docker if not installed
+            if ! command -v docker &> /dev/null; then
+              sudo apt-get install -y docker.io
+              sudo systemctl enable docker
+              sudo systemctl start docker
+            fi
 
-            # Install Docker Compose plugin
-            sudo apt-get install -y docker-compose-plugin
+            # Install Docker Compose plugin if not installed
+            if ! docker compose version &> /dev/null; then
+              sudo apt-get install -y docker-compose-plugin
+            fi
 
-            # Show versions
-            docker --version
-            docker compose version
+            # Clone or update repo
+            if [ ! -d "app-repo" ]; then
+              git clone $GIT_REPO_URL app-repo
+            else
+              cd app-repo && git pull origin main && cd ..
+            fi
+
+            # Go inside repo and run docker compose
+            cd app-repo
+            sudo docker compose down || true
+            sudo docker compose up -d --build
           EOF
