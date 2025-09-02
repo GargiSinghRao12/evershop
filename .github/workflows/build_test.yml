@@ -22,7 +22,7 @@ jobs:
       - name: Deploy on EC2
         run: |
           EC2_USER=ubuntu   # or ec2-user if Amazon Linux
-          EC2_HOST=${{ secrets.EC2_PUBLIC_IP }}
+          EC2_HOST="ec2-13-232-238-63.ap-south-1.compute.amazonaws.com"
           GIT_REPO_URL="https://github.com/GargiSinghRao12/evershop.git"  # put your repo URL in GitHub Secrets
 
           ssh -o StrictHostKeyChecking=no -i ec2-key.pem $EC2_USER@$EC2_HOST << 'EOF'
