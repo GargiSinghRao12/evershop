@@ -16,16 +16,17 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'   # change version if needed
+          node-version: '18'   # change if needed
 
       - name: Show Node.js version
         run: node -v
 
-      # Install AWS CLI
-      - name: Install AWS CLI
+      # Install AWS CLI v2
+      - name: Install AWS CLI v2
         run: |
-          sudo apt-get update
-          sudo apt-get install -y awscli
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
           aws --version
 
       # Setup SSH key from repo root
@@ -37,8 +38,8 @@ jobs:
       # SSH into EC2 and install Docker + Docker Compose
       - name: Install Docker and Docker Compose on EC2
         run: |
-          EC2_USER=ubuntu                  # change if using amazon-linux/ec2-user
-          EC2_HOST=${{ secrets.EC2_PUBLIC_IP }}   # set this in GitHub secrets
+          EC2_USER=ubuntu   # change if using Amazon Linux ("ec2-user")
+          EC2_HOST=${{ secrets.EC2_PUBLIC_IP }}   # store EC2 public IP in secrets
           PEM_FILE=$(ls ./*.pem | head -n 1)
 
           ssh -o StrictHostKeyChecking=no -i "$PEM_FILE" $EC2_USER@$EC2_HOST << 'EOF'
@@ -50,7 +51,7 @@ jobs:
             sudo systemctl enable docker
             sudo systemctl start docker
 
-            # Install Docker Compose (plugin-based)
+            # Install Docker Compose plugin
             sudo apt-get install -y docker-compose-plugin
 
             # Show versions
